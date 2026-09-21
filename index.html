@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profikarriere Simulator - Fußballsport Game</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Sports Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pitch: {
+                            800: '#064e3b',
+                            900: '#022c22',
+                        },
+                        accent: {
+                            green: '#10b981',
+                            neon: '#22c55e',
+                            gold: '#f59e0b',
+                            cyan: '#06b6d4'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styling & animations */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            user-select: none;
+        }
+        .glow-emerald {
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
+        }
+        .glow-gold {
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.3);
+        }
+        .pitch-pattern {
+            background-color: #022c22;
+            background-image: repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(255, 255, 255, 0.03) 40px, rgba(255, 255, 255, 0.03) 80px);
+        }
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #10b981;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+    <!-- Top Header Navigation -->
+    <header id="game-header" class="hidden border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-40 px-4 py-3">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <!-- Left: Logo & Player Quick Info -->
+            <div class="flex items-center space-x-3">
+                <div class="relative flex items-center justify-center w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500 text-emerald-400 font-bold text-lg">
+                    <span id="hdr-jersey-num">7</span>
+                </div>
+                <div>
+                    <h1 id="hdr-player-name" class="font-extrabold text-white text-base leading-tight">Max Mustermann</h1>
+                    <div class="flex items-center space-x-2 text-xs text-slate-400">
+                        <span id="hdr-player-club" class="text-emerald-400 font-medium">FC Bayern</span>
+                        <span>•</span>
+                        <span id="hdr-player-pos">ST</span>
+                        <span>•</span>
+                        <span>Alter: <strong id="hdr-player-age" class="text-slate-200">17</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle: Quick Stats Overview -->
+            <div class="hidden md:flex items-center space-x-6 text-sm">
+                <div class="text-center">
+                    <div class="text-xs text-slate-400">GES</div>
+                    <div id="hdr-ovr" class="font-black text-emerald-400 text-lg">68</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs text-slate-400">Saison</div>
+                    <div id="hdr-season" class="font-bold text-slate-200">1</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs text-slate-400">Spieltag</div>
+                    <div id="hdr-match-day" class="font-bold text-amber-400">1 / 10</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-xs text-slate-400">Marktwert</div>
+                    <div id="hdr-market-val" class="font-bold text-emerald-400">1.2 Mio €</div>
+                </div>
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="flex items-center space-x-2">
+                <button onclick="saveGame(true)" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-sm flex items-center gap-1">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    <span class="hidden sm:inline">Speichern</span>
+                </button>
+                <button onclick="confirmResetGame()" class="p-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-800/40 transition text-sm" title="Neustart">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+    <!-- MAIN APP WRAPPER -->
+    <main class="flex-grow flex flex-col justify-center items-center p-3 md:p-6 max-w-7xl mx-auto w-full">
+
+        <!-- SCREEN 1: START SCREEN -->
+        <section id="screen-start" class="w-full max-w-3xl text-center py-12 px-6 flex flex-col items-center justify-center min-h-[80vh]">
+            <div class="relative mb-8">
+                <div class="absolute -inset-1 rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 blur-xl opacity-50 animate-pulse"></div>
+                <div class="relative w-28 h-28 md:w-36 md:h-36 rounded-full bg-slate-900 border-2 border-emerald-500/50 flex items-center justify-center text-emerald-400 text-5xl md:text-6xl shadow-2xl">
+                    <i class="fa-solid fa-futbol"></i>
+                </div>
+            </div>
+
+            <h1 class="text-4xl md:text-6xl font-black tracking-tight text-white mb-3">
+                PROFIKARRIERE <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">SIMULATOR</span>
+            </h1>
+            <p class="text-slate-400 text-base md:text-lg mb-8 max-w-xl">
+                Erschaffe deine eigene Fußball-Legende! Starte als 17-jähriges Talent, dominiere Top-Ligen, erbeute Titel und baue eine unvergleichliche Weltkarriere auf.
+            </p>
+
+            <div class="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                <button onclick="goToCreationScreen()" class="flex-1 py-4 px-6 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-lg uppercase tracking-wider transition shadow-lg shadow-emerald-500/25 transform hover:-translate-y-0.5">
+                    <i class="fa-solid fa-user-plus mr-2"></i> Profi erstellen
+                </button>
+                <button id="btn-continue-career" onclick="loadSavedGame()" class="hidden flex-1 py-4 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-lg transition">
+                    <i class="fa-solid fa-play mr-2 text-emerald-400"></i> Fortsetzen
+                </button>
+            </div>
+        </section>
+
+
+        <!-- SCREEN 2: CREATION FORM -->
+        <section id="screen-creation" class="hidden w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-2xl backdrop-blur-md">
+            <div class="flex items-center gap-3 pb-6 mb-6 border-b border-slate-800">
+                <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-2xl">
+                    <i class="fa-solid fa-id-card"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white">Erstelle deinen Profispieler</h2>
+                    <p class="text-slate-400 text-sm">Lege die Grundsteine deiner sportlichen Laufbahn fest.</p>
+                </div>
+            </div>
+
+            <form id="player-creation-form" onsubmit="event.preventDefault(); startCareer();" class="space-y-6">
+                <!-- Name Inputs -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Vorname</label>
+                        <input type="text" id="input-firstname" required placeholder="z.B. Lucas"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Nachname</label>
+                        <input type="text" id="input-lastname" required placeholder="z.B. Schmidt"
+                            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition">
+                    </div>
+                </div>
+
+                <!-- Trikotnummer & Position -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Trikotnummer (1-99)</label>
+                        <input type="number" id="input-number" min="1" max="99" value="10" required
+                            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition font-bold text-center">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Position</label>
+                        <select id="input-position" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-emerald-500 transition font-medium">
+                            <option value="ST">⚽ Stürmer (ST) - Fokus auf Schuss & Tempo</option>
+                            <option value="MF">🎯 Mittelfeldspieler (MF) - Fokus auf Passen & Dribbling</option>
+                            <option value="ABW">🛡️ Abwehrspieler (ABW) - Fokus auf Defensive & Physis</option>
+                            <option value="TW">🧤 Torwart (TW) - Fokus auf Reflexe & Physis</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Teamauswahl -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Start-Verein wählen</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="club-selection-grid">
+                        <!-- Will be populated via JS -->
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="flex gap-4 pt-4 border-t border-slate-800">
+                    <button type="button" onclick="goToStartScreen()" class="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold transition">
+                        Zurück
+                    </button>
+                    <button type="submit" class="flex-1 py-3 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-lg transition shadow-lg shadow-emerald-500/20">
+                        Karriere starten! <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </form>
+        </section>
+
+
+        <!-- SCREEN 3: MAIN DASHBOARD -->
+        <section id="screen-dashboard" class="hidden w-full flex flex-col gap-6">
+
+            <!-- Tab Navigation Bar -->
+            <nav class="flex border-b border-slate-800 bg-slate-900/60 p-1.5 rounded-2xl overflow-x-auto gap-1">
+                <button onclick="switchTab('matchday')" id="tab-btn-matchday" class="tab-btn active flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition whitespace-nowrap bg-emerald-500 text-slate-950">
+                    <i class="fa-solid fa-futbol"></i> Spieltag
+                </button>
+                <button onclick="switchTab('player')" id="tab-btn-player" class="tab-btn flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+                    <i class="fa-solid fa-user-ninja"></i> Mein Profi & Attribute
+                </button>
+                <button onclick="switchTab('table')" id="tab-btn-table" class="tab-btn flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+                    <i class="fa-solid fa-list-ol"></i> Saison & Tabelle
+                </button>
+                <button onclick="switchTab('stats')" id="tab-btn-stats" class="tab-btn flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+                    <i class="fa-solid fa-chart-line"></i> Karriere & Erfolge
+                </button>
+                <button onclick="switchTab('transfers')" id="tab-btn-transfers" class="tab-btn flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+                    <i class="fa-solid fa-file-contract"></i> Transfers & Vertrag
+                </button>
+            </nav>
+
+            <!-- TAB 1: SPIELTAG (MATCHDAY) -->
+            <div id="tab-content-matchday" class="tab-content space-y-6">
+                <!-- Next Match Card -->
+                <div class="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-pitch-900 border border-slate-800 rounded-2xl p-6 md:p-8 shadow-xl">
+                    <div class="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
+                        
+                        <!-- Team A (My Team) -->
+                        <div class="flex items-center gap-4 text-center md:text-left">
+                            <div id="m-home-logo" class="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-slate-800 border-2 border-emerald-500/40 flex items-center justify-center text-2xl font-black text-emerald-400 shadow-lg">
+                                FCB
+                            </div>
+                            <div>
+                                <span class="text-xs uppercase tracking-widest text-emerald-400 font-semibold">Dein Team</span>
+                                <h3 id="m-home-name" class="text-2xl font-black text-white">FC Bayern München</h3>
+                                <p class="text-xs text-slate-400">Aufstellung: Startelf (<span id="m-player-pos-badge" class="text-emerald-400 font-bold">ST</span>)</p>
+                            </div>
+                        </div>
+
+                        <!-- VS Badge -->
+                        <div class="flex flex-col items-center">
+                            <span class="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1" id="m-match-num">Spiel 1 von 10</span>
+                            <div class="px-4 py-1.5 rounded-full bg-slate-800 border border-slate-700 font-black text-slate-300 text-sm">
+                                VS
+                            </div>
+                        </div>
+
+                        <!-- Team B (Opponent) -->
+                        <div class="flex items-center gap-4 text-center md:text-right flex-row-reverse">
+                            <div id="m-away-logo" class="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-2xl font-black text-slate-300 shadow-lg">
+                                SGE
+                            </div>
+                            <div>
+                                <span class="text-xs uppercase tracking-widest text-slate-400 font-semibold">Gegner</span>
+                                <h3 id="m-away-name" class="text-2xl font-black text-white">Eintracht Frankfurt</h3>
+                                <p class="text-xs text-slate-400">Liga-Duell</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Button & Energy -->
+                    <div class="mt-8 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div class="flex items-center gap-3 w-full sm:w-auto bg-slate-950/60 px-4 py-2.5 rounded-xl border border-slate-800">
+                            <i class="fa-solid fa-bolt text-amber-400 text-lg"></i>
+                            <div class="flex-1">
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-400">Fitness / Ausdauer</span>
+                                    <span id="m-energy-val" class="font-bold text-amber-400">100%</span>
+                                </div>
+                                <div class="w-32 bg-slate-800 rounded-full h-2">
+                                    <div id="m-energy-bar" class="bg-amber-400 h-2 rounded-full" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="btn-play-match" onclick="startMatchSimulation()" class="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-lg transition shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-circle-play text-xl"></i> Nächstes Spiel spielen
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent Form & Last Match Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Saisonziel Status</h4>
+                        <div class="flex items-center gap-3 mb-2">
+                            <i class="fa-solid fa-bullseye text-emerald-400 text-xl"></i>
+                            <div>
+                                <div class="text-lg font-bold text-white">Mindestens 5 Tore & 3 Assists</div>
+                                <div class="text-xs text-slate-400">Aktuell: <span id="goal-target-counter" class="text-emerald-400 font-bold">0 / 5 Tore</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Durchschnittsnote</h4>
+                        <div class="flex items-center gap-3">
+                            <div id="avg-rating-box" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 font-black text-2xl border border-emerald-500/30">
+                                0.0
+                            </div>
+                            <div class="text-xs text-slate-400">
+                                <p class="font-bold text-slate-200">Match-Performance</p>
+                                <p>Höhere Noten geben mehr XP & Punkte!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Nächste Prämie</h4>
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-coins text-amber-400 text-2xl"></i>
+                            <div>
+                                <div id="match-bonus-text" class="text-lg font-bold text-amber-400">+ 5.000 € pro Sieg</div>
+                                <div class="text-xs text-slate-400">Siegesprämie aus deinem Vertrag</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: MEIN PROFI (ATTRIBUTES & SKILLS) -->
+            <div id="tab-content-player" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Player Card Info -->
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 flex flex-col items-center text-center relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-24 bg-gradient-to-r from-emerald-600/20 to-cyan-600/20"></div>
+                        <div class="relative mt-4 mb-4">
+                            <!-- Jersey Visual -->
+                            <div class="w-28 h-32 bg-emerald-600 rounded-t-3xl rounded-b-xl border-4 border-slate-900 flex flex-col items-center justify-center text-white shadow-2xl relative">
+                                <span class="text-3xl font-black" id="card-jersey-num">10</span>
+                                <span class="text-[10px] font-bold uppercase tracking-widest" id="card-jersey-name">SCHMIDT</span>
+                            </div>
+                            <div class="absolute -bottom-3 -right-3 w-12 h-12 rounded-full bg-slate-900 border-2 border-emerald-400 flex items-center justify-center font-black text-emerald-400 text-lg shadow-lg" id="card-ovr">
+                                68
+                            </div>
+                        </div>
+
+                        <h3 id="card-full-name" class="text-2xl font-black text-white mt-2">Lucas Schmidt</h3>
+                        <p id="card-pos-club" class="text-sm font-semibold text-emerald-400 mb-4">Stürmer (ST) • FC Bayern</p>
+
+                        <div class="w-full space-y-2 border-t border-slate-800 pt-4 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Alter:</span>
+                                <span id="card-age" class="font-bold text-white">17 Jahre</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Erfahrung (XP):</span>
+                                <span id="card-xp" class="font-bold text-cyan-400">120 / 300 XP</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Verfügbare Skillpunkte:</span>
+                                <span id="card-skillpoints" class="font-bold text-amber-400 text-base">0 SP</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Attribute Upgrades -->
+                    <div class="lg:col-span-2 bg-slate-900/90 border border-slate-800 rounded-2xl p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 class="text-xl font-bold text-white">Spieler-Attribute</h3>
+                                <p class="text-xs text-slate-400">Setze deine Skillpunkte ein, um deinen Gesamtwert (GES) zu steigern.</p>
+                            </div>
+                            <div class="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-sm">
+                                Skillpunkte: <span id="sp-counter">0</span>
+                            </div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div class="space-y-4" id="attributes-container">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: SAISON & TABELLE -->
+            <div id="tab-content-table" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-xl font-bold text-white">Liga-Tabelle (Saison <span id="tbl-season-num">1</span>)</h3>
+                            <p class="text-xs text-slate-400">Spiele insgesamte 10 Spieltage pro Saison um den Meistertitel.</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-950 text-slate-400 uppercase text-xs">
+                                <tr>
+                                    <th class="p-3">#</th>
+                                    <th class="p-3">Verein</th>
+                                    <th class="p-3 text-center">Spiele</th>
+                                    <th class="p-3 text-center">S</th>
+                                    <th class="p-3 text-center">U</th>
+                                    <th class="p-3 text-center">N</th>
+                                    <th class="p-3 text-center">Tore</th>
+                                    <th class="p-3 text-center">Diff</th>
+                                    <th class="p-3 text-center font-bold">Punkte</th>
+                                </tr>
+                            </thead>
+                            <tbody id="league-table-body" class="divide-y divide-slate-800/60 font-medium">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: KARRIERE & ERFOLGE -->
+            <div id="tab-content-stats" class="tab-content hidden space-y-6">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 text-center">
+                        <i class="fa-solid fa-shirt text-emerald-400 text-2xl mb-2"></i>
+                        <div id="st-matches" class="text-3xl font-black text-white">0</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Absolvierte Spiele</div>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 text-center">
+                        <i class="fa-solid fa-futbol text-emerald-400 text-2xl mb-2"></i>
+                        <div id="st-goals" class="text-3xl font-black text-white">0</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Karriere-Tore</div>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 text-center">
+                        <i class="fa-solid fa-handshake-angle text-emerald-400 text-2xl mb-2"></i>
+                        <div id="st-assists" class="text-3xl font-black text-white">0</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Vorlagen (Assists)</div>
+                    </div>
+                    <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 text-center">
+                        <i class="fa-solid fa-trophy text-amber-400 text-2xl mb-2"></i>
+                        <div id="st-trophies" class="text-3xl font-black text-amber-400">0</div>
+                        <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Gewonnene Titel</div>
+                    </div>
+                </div>
+
+                <!-- Trophies Cabinet -->
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6">
+                    <h3 class="text-xl font-bold text-white mb-4"><i class="fa-solid fa-award text-amber-400 mr-2"></i> Trophäenschrank</h3>
+                    <div id="trophy-cabinet" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: TRANSFERS & VERTRAG -->
+            <div id="tab-content-transfers" class="tab-content hidden space-y-6">
+                <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6">
+                    <h3 class="text-xl font-bold text-white mb-2">Vertragsstatus</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <span class="text-xs text-slate-400">Aktueller Verein</span>
+                            <p id="tr-club" class="text-lg font-bold text-emerald-400">FC Bayern München</p>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <span class="text-xs text-slate-400">Wöchentliches Gehalt</span>
+                            <p id="tr-salary" class="text-lg font-bold text-white">8.500 €</p>
+                        </div>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                            <span class="text-xs text-slate-400">Aktueller Marktwert</span>
+                            <p id="tr-market" class="text-lg font-bold text-emerald-400">1.200.000 €</p>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-bold text-white mb-4">Transferangebote</h3>
+                    <p class="text-xs text-slate-400 mb-4">Neue Transferangebote anderer Top-Clubs erhältst du nach Ablauf jeder Saison (alle 10 Spiele).</p>
+
+                    <div id="transfer-offers-list" class="space-y-4">
+                        <div class="text-center py-8 bg-slate-950/40 rounded-xl border border-slate-800/80 text-slate-500">
+                            <i class="fa-solid fa-briefcase text-3xl mb-2"></i>
+                            <p>Keine aktiven Transferangebote. Spiele die laufende Saison zu Ende!</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- LIVE MATCH SIMULATION MODAL -->
+    <div id="modal-match-sim" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center border-b border-slate-800 pb-4 mb-4">
+                <div>
+                    <span class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Live Simulation</span>
+                    <h3 id="sim-clubs-title" class="text-xl font-black text-white">FC Bayern vs Eintracht Frankfurt</h3>
+                </div>
+                <div class="px-4 py-2 rounded-xl bg-slate-950 border border-slate-800 font-mono font-bold text-amber-400 text-2xl" id="sim-timer">
+                    0'
+                </div>
+            </div>
+
+            <!-- Scoreboard -->
+            <div class="bg-pitch-900 border border-emerald-500/30 rounded-xl p-4 flex justify-around items-center mb-4 shadow-inner">
+                <div class="text-center">
+                    <div id="sim-team-a" class="font-black text-white text-lg">FC Bayern</div>
+                    <div id="sim-score-a" class="text-4xl font-black text-emerald-400">0</div>
+                </div>
+                <div class="text-2xl font-black text-slate-600">:</div>
+                <div class="text-center">
+                    <div id="sim-team-b" class="font-black text-white text-lg">Frankfurt</div>
+                    <div id="sim-score-b" class="text-4xl font-black text-emerald-400">0</div>
+                </div>
+            </div>
+
+            <!-- Live Ticker Feed -->
+            <div id="sim-ticker-feed" class="flex-1 overflow-y-auto space-y-2.5 p-3 bg-slate-950 rounded-xl border border-slate-800/80 my-2 font-sans text-sm min-h-[180px]">
+                <!-- Events added dynamically -->
+            </div>
+
+            <!-- Live Personal Match Stats -->
+            <div class="grid grid-cols-4 gap-2 pt-3 border-t border-slate-800 text-center text-xs">
+                <div class="bg-slate-950 p-2 rounded-lg">
+                    <div class="text-slate-400">Tore</div>
+                    <div id="sim-p-goals" class="font-bold text-emerald-400 text-base">0</div>
+                </div>
+                <div class="bg-slate-950 p-2 rounded-lg">
+                    <div class="text-slate-400">Vorlagen</div>
+                    <div id="sim-p-assists" class="font-bold text-cyan-400 text-base">0</div>
+                </div>
+                <div class="bg-slate-950 p-2 rounded-lg">
+                    <div class="text-slate-400">Ballkontakte</div>
+                    <div id="sim-p-touches" class="font-bold text-slate-200 text-base">0</div>
+                </div>
+                <div class="bg-slate-950 p-2 rounded-lg">
+                    <div class="text-slate-400">Match-Note</div>
+                    <div id="sim-p-rating" class="font-bold text-amber-400 text-base">6.0</div>
+                </div>
+            </div>
+
+            <!-- Finish Button -->
+            <div class="mt-4 pt-3 flex justify-end">
+                <button id="btn-finish-match-modal" disabled onclick="closeMatchModal()" class="w-full py-3 rounded-xl bg-slate-800 text-slate-500 font-bold transition">
+                    Spiel läuft...
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- SEASON RECAP MODAL -->
+    <div id="modal-season-end" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 md:p-8 shadow-2xl text-center">
+            <div class="w-20 h-20 bg-amber-500/10 border-2 border-amber-500 rounded-full flex items-center justify-center text-amber-400 text-4xl mx-auto mb-4 glow-gold">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+
+            <h2 class="text-3xl font-black text-white mb-1">Saison <span id="se-num">1</span> Beendet!</h2>
+            <p class="text-slate-400 text-sm mb-6">Ein Jahr ist vergangen. Du bist jetzt <strong id="se-age" class="text-white">18 Jahre</strong> alt.</p>
+
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3 text-left mb-6">
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-400">Endplatzierung in der Liga:</span>
+                    <span id="se-rank" class="font-bold text-emerald-400 text-base">Platz 1 (Meister! 🏆)</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-400">Deine Saisontore:</span>
+                    <span id="se-goals" class="font-bold text-white">8 Tore</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-400">Deine Vorlagen:</span>
+                    <span id="se-assists" class="font-bold text-white">4 Assists</span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <span class="text-slate-400">Auszeichnungen:</span>
+                    <span id="se-awards" class="font-bold text-amber-400">Torschützenkönig 🥇</span>
+                </div>
+            </div>
+
+            <button onclick="startNextSeason()" class="w-full py-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-lg transition shadow-lg shadow-emerald-500/25">
+                In die nächste Saison starten <i class="fa-solid fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </div>
+
+
+    <script>
+        /* ==========================================================================
+           GAME STATE & CONSTANTS
+           ========================================================================== */
+        
+        // List of available clubs in the simulator
+        const CLUBS = [
+            { id: 'fcb', name: 'FC Bayern München', short: 'FCB', rating: 88, color: '#dc2626' },
+            { id: 'sge', name: 'Eintracht Frankfurt', short: 'SGE', rating: 80, color: '#000000' },
+            { id: 'bvb', name: 'Borussia Dortmund', short: 'BVB', rating: 84, color: '#eab308' },
+            { id: 'bar', name: 'FC Barcelona', short: 'BAR', rating: 87, color: '#2563eb' },
+            { id: 'rma', name: 'Real Madrid', short: 'RMA', rating: 90, color: '#f8fafc' },
+            { id: 'mci', name: 'Manchester City', short: 'MCI', rating: 91, color: '#38bdf8' },
+            { id: 'psg', name: 'Paris Saint-Germain', short: 'PSG', rating: 86, color: '#1e3a8a' },
+            { id: 'liv', name: 'Liverpool FC', short: 'LIV', rating: 87, color: '#991b1b' }
+        ];
+
+        // Primary Game State Object
+        let gameState = {
+            player: {
+                firstName: '',
+                lastName: '',
+                number: 10,
+                position: 'ST', // ST, MF, ABW, TW
+                age: 17,
+                clubId: 'fcb',
+                attributes: {
+                    tempo: 65,
+                    schuss: 65,
+                    passen: 65,
+                    dribbling: 65,
+                    defensive: 60,
+                    physis: 65
+                },
+                xp: 0,
+                xpNext: 200,
+                skillPoints: 0,
+                energy: 100,
+                salary: 5000, // € per week/match
+                marketValue: 1000000, // €
+                careerStats: {
+                    matches: 0,
+                    goals: 0,
+                    assists: 0,
+                    trophies: [],
+                    ratingsSum: 0
+                }
+            },
+            season: 1,
+            matchDay: 1, // 1 to 10 per season
+            leagueTable: [], // Array of club standings
+            transferOffers: []
+        };
+
+        // Web Audio Synth for Effects
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            try {
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.05);
+                } else if (type === 'whistle') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(1800, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.35);
+                } else if (type === 'cheer') {
+                    // White noise cheer effect approximation
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(600, audioCtx.currentTime + 0.4);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.5);
+                }
+            } catch (e) {
+                // Fallback silently if audio context blocked
+            }
+        }
+
+        /* ==========================================================================
+           INITIALIZATION & NAVIGATION
+           ========================================================================== */
+
+        window.onload = function () {
+            // Populate club selector in creation screen
+            populateClubSelectionGrid();
+            
+            // Check if saved game exists
+            if (localStorage.getItem('profikarriere_save')) {
+                document.getElementById('btn-continue-career').classList.remove('hidden');
+            }
+        };
+
+        function populateClubSelectionGrid() {
+            const container = document.getElementById('club-selection-grid');
+            container.innerHTML = '';
+
+            CLUBS.forEach((club, index) => {
+                const label = document.createElement('label');
+                label.className = `cursor-pointer border border-slate-800 bg-slate-950 p-3 rounded-xl flex flex-col items-center gap-2 hover:border-emerald-500 transition text-center`;
+                label.innerHTML = `
+                    <input type="radio" name="club_choice" value="${club.id}" ${index === 0 ? 'checked' : ''} class="hidden peer">
+                    <div class="w-10 h-10 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center font-bold text-xs peer-checked:border-emerald-500 peer-checked:text-emerald-400 peer-checked:bg-emerald-500/10">
+                        ${club.short}
+                    </div>
+                    <span class="text-xs font-semibold text-slate-300 peer-checked:text-emerald-400">${club.name}</span>
+                `;
+                container.appendChild(label);
+            });
+        }
+
+        function goToCreationScreen() {
+            playSound('click');
+            document.getElementById('screen-start').classList.add('hidden');
+            document.getElementById('screen-creation').classList.remove('hidden');
+        }
+
+        function goToStartScreen() {
+            playSound('click');
+            document.getElementById('screen-creation').classList.add('hidden');
+            document.getElementById('screen-start').classList.remove('hidden');
+        }
+
+        /* ==========================================================================
+           CAREER CREATION & INITIALIZATION
+           ========================================================================== */
+
+        function startCareer() {
+            playSound('whistle');
+            const firstName = document.getElementById('input-firstname').value.trim();
+            const lastName = document.getElementById('input-lastname').value.trim();
+            const number = parseInt(document.getElementById('input-number').value) || 10;
+            const position = document.getElementById('input-position').value;
+            
+            const selectedClubEl = document.querySelector('input[name="club_choice"]:checked');
+            const clubId = selectedClubEl ? selectedClubEl.value : 'fcb';
+
+            // Setup initial stats based on position
+            let baseStats = { tempo: 65, schuss: 65, passen: 65, dribbling: 65, defensive: 60, physis: 65 };
+            if (position === 'ST') { baseStats.schuss = 72; baseStats.tempo = 70; }
+            else if (position === 'MF') { baseStats.passen = 72; baseStats.dribbling = 70; }
+            else if (position === 'ABW') { baseStats.defensive = 72; baseStats.physis = 70; }
+            else if (position === 'TW') { baseStats.defensive = 75; baseStats.physis = 68; }
+
+            gameState.player = {
+                firstName: firstName,
+                lastName: lastName,
+                number: number,
+                position: position,
+                age: 17,
+                clubId: clubId,
+                attributes: baseStats,
+                xp: 0,
+                xpNext: 200,
+                skillPoints: 3, // Start with 3 free skill points
+                energy: 100,
+                salary: 6000,
+                marketValue: 1200000,
+                careerStats: {
+                    matches: 0,
+                    goals: 0,
+                    assists: 0,
+                    trophies: [],
+                    ratingsSum: 0
+                }
+            };
+
+            gameState.season = 1;
+            gameState.matchDay = 1;
+            
+            // Initialize League Table
+            initLeagueTable();
+
+            // Save & Show Dashboard
+            saveGame(false);
+            showDashboard();
+            showToast('Profi erfolgreich erstellt! Viel Erfolg!', 'success');
+        }
+
+        function calculateOVR(player) {
+            const a = player.attributes;
+            let ovr = 0;
+            if (player.position === 'ST') {
+                ovr = (a.schuss * 0.35) + (a.tempo * 0.25) + (a.dribbling * 0.2) + (a.passen * 0.1) + (a.physis * 0.1);
+            } else if (player.position === 'MF') {
+                ovr = (a.passen * 0.3) + (a.dribbling * 0.25) + (a.tempo * 0.15) + (a.schuss * 0.15) + (a.defensive * 0.15);
+            } else if (player.position === 'ABW') {
+                ovr = (a.defensive * 0.4) + (a.physis * 0.3) + (a.tempo * 0.15) + (a.passen * 0.15);
+            } else {
+                ovr = (a.defensive * 0.5) + (a.physis * 0.3) + (a.passen * 0.2);
+            }
+            return Math.round(ovr);
+        }
+
+        function initLeagueTable() {
+            gameState.leagueTable = CLUBS.map(club => ({
+                id: club.id,
+                name: club.name,
+                short: club.short,
+                played: 0,
+                wins: 0,
+                draws: 0,
+                losses: 0,
+                gf: 0,
+                ga: 0,
+                points: 0
+            }));
+        }
+
+        /* ==========================================================================
+           DASHBOARD RENDERING
+           ========================================================================== */
+
+        function showDashboard() {
+            document.getElementById('screen-start').classList.add('hidden');
+            document.getElementById('screen-creation').classList.add('hidden');
+            document.getElementById('game-header').classList.remove('hidden');
+            document.getElementById('screen-dashboard').classList.remove('hidden');
+
+            updateUI();
+        }
+
+        function updateUI() {
+            const p = gameState.player;
+            const club = CLUBS.find(c => c.id === p.clubId) || CLUBS[0];
+            const ovr = calculateOVR(p);
+
+            // Header Elements
+            document.getElementById('hdr-jersey-num').innerText = p.number;
+            document.getElementById('hdr-player-name').innerText = `${p.firstName} ${p.lastName}`;
+            document.getElementById('hdr-player-club').innerText = club.name;
+            document.getElementById('hdr-player-pos').innerText = p.position;
+            document.getElementById('hdr-player-age').innerText = p.age;
+            document.getElementById('hdr-ovr').innerText = ovr;
+            document.getElementById('hdr-season').innerText = gameState.season;
+            document.getElementById('hdr-match-day').innerText = `${gameState.matchDay} / 10`;
+            document.getElementById('hdr-market-val').innerText = `${(p.marketValue / 1000000).toFixed(1)} Mio €`;
+
+            // Matchday Tab Info
+            document.getElementById('m-home-name').innerText = club.name;
+            document.getElementById('m-home-logo').innerText = club.short;
+            document.getElementById('m-player-pos-badge').innerText = p.position;
+            document.getElementById('m-match-num').innerText = `Spiel ${gameState.matchDay} von 10`;
+            document.getElementById('m-energy-val').innerText = `${p.energy}%`;
+            document.getElementById('m-energy-bar').style.width = `${p.energy}%`;
+
+            // Opponent setup
+            const opponents = CLUBS.filter(c => c.id !== p.clubId);
+            const opponent = opponents[(gameState.matchDay - 1) % opponents.length];
+            document.getElementById('m-away-name').innerText = opponent.name;
+            document.getElementById('m-away-logo').innerText = opponent.short;
+
+            // Player Card Tab Info
+            document.getElementById('card-jersey-num').innerText = p.number;
+            document.getElementById('card-jersey-name').innerText = p.lastName.toUpperCase();
+            document.getElementById('card-full-name').innerText = `${p.firstName} ${p.lastName}`;
+            document.getElementById('card-pos-club').innerText = `${p.position} • ${club.name}`;
+            document.getElementById('card-ovr').innerText = ovr;
+            document.getElementById('card-age').innerText = `${p.age} Jahre`;
+            document.getElementById('card-xp').innerText = `${p.xp} / ${p.xpNext} XP`;
+            document.getElementById('card-skillpoints').innerText = `${p.skillPoints} SP`;
+            document.getElementById('sp-counter').innerText = p.skillPoints;
+
+            // Attributes Render
+            renderAttributes();
+
+            // League Table Render
+            renderLeagueTable();
+
+            // Stats Render
+            document.getElementById('st-matches').innerText = p.careerStats.matches;
+            document.getElementById('st-goals').innerText = p.careerStats.goals;
+            document.getElementById('st-assists').innerText = p.careerStats.assists;
+            document.getElementById('st-trophies').innerText = p.careerStats.trophies.length;
+            renderTrophies();
+
+            // Goal target counter
+            document.getElementById('goal-target-counter').innerText = `${p.careerStats.goals} Tore`;
+
+            // Avg rating
+            const avgRating = p.careerStats.matches > 0 
+                ? (p.careerStats.ratingsSum / p.careerStats.matches).toFixed(1)
+                : '0.0';
+            document.getElementById('avg-rating-box').innerText = avgRating;
+
+            // Contract Tab
+            document.getElementById('tr-club').innerText = club.name;
+            document.getElementById('tr-salary').innerText = `${p.salary.toLocaleString('de-DE')} €`;
+            document.getElementById('tr-market').innerText = `${p.marketValue.toLocaleString('de-DE')} €`;
+            renderTransferOffers();
+        }
+
+        function switchTab(tabName) {
+            playSound('click');
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-emerald-500', 'text-slate-950');
+                btn.classList.add('text-slate-400');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+
+            document.getElementById(`tab-btn-${tabName}`).classList.add('bg-emerald-500', 'text-slate-950');
+            document.getElementById(`tab-btn-${tabName}`).classList.remove('text-slate-400');
+            document.getElementById(`tab-content-${tabName}`).classList.remove('hidden');
+        }
+
+        function renderAttributes() {
+            const container = document.getElementById('attributes-container');
+            container.innerHTML = '';
+
+            const attrs = [
+                { id: 'tempo', name: 'Tempo', icon: 'fa-bolt', color: 'text-amber-400' },
+                { id: 'schuss', name: 'Schuss', icon: 'fa-crosshair', color: 'text-red-400' },
+                { id: 'passen', name: 'Passen', icon: 'fa-bullseye', color: 'text-emerald-400' },
+                { id: 'dribbling', name: 'Dribbling', icon: 'fa-shoe-prints', color: 'text-cyan-400' },
+                { id: 'defensive', name: 'Defensive', icon: 'fa-shield', color: 'text-blue-400' },
+                { id: 'physis', name: 'Physis', icon: 'fa-dumbbell', color: 'text-purple-400' }
+            ];
+
+            attrs.forEach(a => {
+                const val = gameState.player.attributes[a.id];
+                const item = document.createElement('div');
+                item.className = 'flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800';
+                item.innerHTML = `
+                    <div class="flex items-center gap-3 w-1/3">
+                        <i class="fa-solid ${a.icon} ${a.color} text-lg"></i>
+                        <span class="font-bold text-sm text-slate-200">${a.name}</span>
+                    </div>
+                    <div class="flex-1 px-4">
+                        <div class="w-full bg-slate-800 rounded-full h-2.5">
+                            <div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-2.5 rounded-full" style="width: ${val}%"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-black text-white text-base w-8 text-right">${val}</span>
+                        <button onclick="upgradeAttribute('${a.id}')" ${gameState.player.skillPoints <= 0 || val >= 99 ? 'disabled' : ''} 
+                            class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 font-bold hover:bg-emerald-500 hover:text-slate-950 transition disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center">
+                            +
+                        </button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function upgradeAttribute(attrKey) {
+            if (gameState.player.skillPoints > 0 && gameState.player.attributes[attrKey] < 99) {
+                playSound('click');
+                gameState.player.attributes[attrKey] += 2; // Increase by +2 points per SP
+                if (gameState.player.attributes[attrKey] > 99) gameState.player.attributes[attrKey] = 99;
+                
+                gameState.player.skillPoints -= 1;
+                
+                // Recalculate Market Value
+                const ovr = calculateOVR(gameState.player);
+                gameState.player.marketValue = Math.round(1000000 * Math.pow(1.1, ovr - 65));
+
+                saveGame(false);
+                updateUI();
+                showToast(`${attrKey.toUpperCase()} erhöht!`, 'info');
+            }
+        }
+
+        /* ==========================================================================
+           MATCH SIMULATION ENGINE
+           ========================================================================== */
+
+        function startMatchSimulation() {
+            playSound('whistle');
+            const p = gameState.player;
+            const myClub = CLUBS.find(c => c.id === p.clubId);
+            const opponents = CLUBS.filter(c => c.id !== p.clubId);
+            const oppClub = opponents[(gameState.matchDay - 1) % opponents.length];
+
+            // Open Modal
+            document.getElementById('modal-match-sim').classList.remove('hidden');
+            document.getElementById('sim-clubs-title').innerText = `${myClub.name} vs ${oppClub.name}`;
+            document.getElementById('sim-team-a').innerText = myClub.name;
+            document.getElementById('sim-team-b').innerText = oppClub.name;
+            document.getElementById('sim-score-a').innerText = '0';
+            document.getElementById('sim-score-b').innerText = '0';
+            document.getElementById('sim-timer').innerText = "0'";
+
+            const feed = document.getElementById('sim-ticker-feed');
+            feed.innerHTML = '<div class="text-xs text-slate-500 italic text-center py-2">Der Schiedsrichter pfeift das Spiel an!</div>';
+
+            let minute = 0;
+            let scoreA = 0;
+            let scoreB = 0;
+            let pGoals = 0;
+            let pAssists = 0;
+            let pTouches = 0;
+            let pRating = 6.0;
+
+            const btnFinish = document.getElementById('btn-finish-match-modal');
+            btnFinish.disabled = true;
+            btnFinish.className = "w-full py-3 rounded-xl bg-slate-800 text-slate-500 font-bold transition";
+            btnFinish.innerText = "Spiel läuft...";
+
+            const simInterval = setInterval(() => {
+                minute += Math.floor(Math.random() * 8) + 5;
+                if (minute > 90) minute = 90;
+
+                document.getElementById('sim-timer').innerText = `${minute}'`;
+
+                // Calculate chances based on player attributes
+                const attackPower = (p.attributes.schuss + p.attributes.tempo + p.attributes.dribbling) / 3;
+                const dice = Math.random() * 100;
+
+                pTouches += Math.floor(Math.random() * 5) + 2;
+
+                // Event generation
+                if (dice < 25) {
+                    // Action involving Player
+                    if (dice < 10) {
+                        // Player Goal
+                        pGoals++;
+                        scoreA++;
+                        pRating += 1.2;
+                        playSound('cheer');
+                        addTickerEvent(feed, minute, '⚽ TOR!', `${p.firstName} ${p.lastName} trifft mit einem platzierten Schuss ins Eck!`, 'text-emerald-400');
+                    } else if (dice < 17) {
+                        // Player Assist
+                        pAssists++;
+                        scoreA++;
+                        pRating += 0.8;
+                        addTickerEvent(feed, minute, '🎯 ASSIST!', `Traumpass von ${p.lastName}! Sein Mitspieler verwandelt sicher.`, 'text-cyan-400');
+                    } else {
+                        // Chance missed
+                        pRating += 0.2;
+                        addTickerEvent(feed, minute, '🔥 CHANCE!', `${p.lastName} setzt sich durch, zieht ab – knapp am Pfosten vorbei!`, 'text-amber-400');
+                    }
+                } else if (dice > 75) {
+                    // Opponent Goal or Attack
+                    if (dice > 88) {
+                        scoreB++;
+                        addTickerEvent(feed, minute, '⚽ TOR GEGNER!', `${oppClub.name} kombiniert sich durch und erzielt den Treffer.`, 'text-red-400');
+                    } else {
+                        addTickerEvent(feed, minute, '🛡️ ABWEHR!', `${myClub.name} verteidigt einen gefährlichen Angriff der Gegner.`, 'text-slate-400');
+                    }
+                }
+
+                // Cap rating
+                pRating = Math.min(10.0, Math.max(4.0, pRating));
+
+                // Update Stats Display in Modal
+                document.getElementById('sim-score-a').innerText = scoreA;
+                document.getElementById('sim-score-b').innerText = scoreB;
+                document.getElementById('sim-p-goals').innerText = pGoals;
+                document.getElementById('sim-p-assists').innerText = pAssists;
+                document.getElementById('sim-p-touches').innerText = pTouches;
+                document.getElementById('sim-p-rating').innerText = pRating.toFixed(1);
+
+                if (minute >= 90) {
+                    clearInterval(simInterval);
+                    playSound('whistle');
+                    addTickerEvent(feed, 90, '🏁 ABPFIFF!', 'Das Spiel ist zu Ende.', 'text-white font-bold');
+
+                    // Save match outcome
+                    finalizeMatchData(scoreA, scoreB, pGoals, pAssists, pRating, myClub.id, oppClub.id);
+
+                    btnFinish.disabled = false;
+                    btnFinish.className = "w-full py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black transition cursor-pointer shadow-lg shadow-emerald-500/20";
+                    btnFinish.innerText = "Ergebnis bestätigen";
+                }
+            }, 500); // Ticker speed
+        }
+
+        function addTickerEvent(feed, minute, title, desc, colorClass) {
+            const div = document.createElement('div');
+            div.className = 'p-2 rounded-lg bg-slate-900 border border-slate-800 flex gap-2 items-start';
+            div.innerHTML = `
+                <span class="font-mono text-xs font-bold text-slate-500 w-8 pt-0.5">${minute}'</span>
+                <div>
+                    <span class="font-bold text-xs ${colorClass}">${title}</span>
+                    <p class="text-xs text-slate-300">${desc}</p>
+                </div>
+            `;
+            feed.appendChild(div);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function finalizeMatchData(scoreA, scoreB, goals, assists, rating, myClubId, oppClubId) {
+            const p = gameState.player;
+            p.careerStats.matches += 1;
+            p.careerStats.goals += goals;
+            p.careerStats.assists += assists;
+            p.careerStats.ratingsSum += rating;
+
+            // Reduce Energy slightly
+            p.energy = Math.max(40, p.energy - 15);
+
+            // Award XP based on rating
+            const gainedXp = Math.round(rating * 15 + goals * 25 + assists * 15);
+            p.xp += gainedXp;
+
+            // Check Level Up
+            if (p.xp >= p.xpNext) {
+                p.xp -= p.xpNext;
+                p.xpNext = Math.round(p.xpNext * 1.3);
+                p.skillPoints += 2;
+                showToast('LEVEL UP! Du erhältst +2 Skillpunkte!', 'success');
+            }
+
+            // Update League Table Standings
+            updateLeagueTableMatch(myClubId, oppClubId, scoreA, scoreB);
+            simulateOtherLeagueMatches(myClubId, oppClubId);
+
+            // Save Progress
+            saveGame(false);
+        }
+
+        function closeMatchModal() {
+            playSound('click');
+            document.getElementById('modal-match-sim').classList.add('hidden');
+
+            // Advance Matchday
+            if (gameState.matchDay < 10) {
+                gameState.matchDay += 1;
+                // Recover energy slightly for next match
+                gameState.player.energy = Math.min(100, gameState.player.energy + 20);
+                updateUI();
+            } else {
+                // End of Season!
+                triggerSeasonEnd();
+            }
+        }
+
+        /* ==========================================================================
+           LEAGUE TABLE LOGIC
+           ========================================================================== */
+
+        function updateLeagueTableMatch(clubAId, clubBId, goalsA, goalsB) {
+            const teamA = gameState.leagueTable.find(t => t.id === clubAId);
+            const teamB = gameState.leagueTable.find(t => t.id === clubBId);
+
+            if (!teamA || !teamB) return;
+
+            teamA.played += 1;
+            teamB.played += 1;
+            teamA.gf += goalsA;
+            teamA.ga += goalsB;
+            teamB.gf += goalsB;
+            teamB.ga += goalsA;
+
+            if (goalsA > goalsB) {
+                teamA.wins += 1;
+                teamA.points += 3;
+                teamB.losses += 1;
+            } else if (goalsA < goalsB) {
+                teamB.wins += 1;
+                teamB.points += 3;
+                teamA.losses += 1;
+            } else {
+                teamA.draws += 1;
+                teamB.draws += 1;
+                teamA.points += 1;
+                teamB.points += 1;
+            }
+        }
+
+        function simulateOtherLeagueMatches(playedA, playedB) {
+            const remaining = gameState.leagueTable.filter(t => t.id !== playedA && t.id !== playedB);
+            for (let i = 0; i < remaining.length; i += 2) {
+                if (i + 1 < remaining.length) {
+                    const gA = Math.floor(Math.random() * 4);
+                    const gB = Math.floor(Math.random() * 4);
+                    updateLeagueTableMatch(remaining[i].id, remaining[i + 1].id, gA, gB);
+                }
+            }
+
+            // Sort League Table
+            gameState.leagueTable.sort((a, b) => {
+                if (b.points !== a.points) return b.points - a.points;
+                const diffB = b.gf - b.ga;
+                const diffA = a.gf - a.ga;
+                return diffB - diffA;
+            });
+        }
+
+        function renderLeagueTable() {
+            document.getElementById('tbl-season-num').innerText = gameState.season;
+            const tbody = document.getElementById('league-table-body');
+            tbody.innerHTML = '';
+
+            gameState.leagueTable.forEach((team, idx) => {
+                const isMyTeam = team.id === gameState.player.clubId;
+                const tr = document.createElement('tr');
+                tr.className = isMyTeam ? 'bg-emerald-500/10 border-l-4 border-emerald-500 font-bold text-white' : 'hover:bg-slate-800/40 text-slate-300';
+                
+                tr.innerHTML = `
+                    <td class="p-3 font-mono">${idx + 1}</td>
+                    <td class="p-3 flex items-center gap-2">
+                        <span>${team.name}</span>
+                        ${isMyTeam ? '<span class="text-[10px] bg-emerald-500 text-slate-950 px-1.5 py-0.5 rounded font-black">DU</span>' : ''}
+                    </td>
+                    <td class="p-3 text-center">${team.played}</td>
+                    <td class="p-3 text-center">${team.wins}</td>
+                    <td class="p-3 text-center">${team.draws}</td>
+                    <td class="p-3 text-center">${team.losses}</td>
+                    <td class="p-3 text-center text-xs text-slate-400">${team.gf}:${team.ga}</td>
+                    <td class="p-3 text-center font-mono">${team.gf - team.ga}</td>
+                    <td class="p-3 text-center text-emerald-400 font-black">${team.points}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        /* ==========================================================================
+           SEASON END & TRANSFERS
+           ========================================================================== */
+
+        function triggerSeasonEnd() {
+            playSound('cheer');
+            const p = gameState.player;
+            p.age += 1;
+
+            // Determine League Rank
+            const myTeamRank = gameState.leagueTable.findIndex(t => t.id === p.clubId) + 1;
+            
+            // Check Trophies
+            if (myTeamRank === 1) {
+                p.careerStats.trophies.push(`Meister Titel (Saison ${gameState.season})`);
+            }
+
+            // Generate Transfer Offers
+            generateTransferOffers();
+
+            // Populate Season End Modal
+            document.getElementById('se-num').innerText = gameState.season;
+            document.getElementById('se-age').innerText = `${p.age} Jahre`;
+            document.getElementById('se-rank').innerText = `Platz ${myTeamRank} ${myTeamRank === 1 ? '🏆 (Meister!)' : ''}`;
+            document.getElementById('se-goals').innerText = `${p.careerStats.goals} Tore`;
+            document.getElementById('se-assists').innerText = `${p.careerStats.assists} Assists`;
+
+            let awardText = 'Solide Saisonleistung';
+            if (p.careerStats.goals >= 8) awardText = 'Torschützenkönig 🥇';
+            document.getElementById('se-awards').innerText = awardText;
+
+            document.getElementById('modal-season-end').classList.remove('hidden');
+        }
+
+        function startNextSeason() {
+            playSound('click');
+            document.getElementById('modal-season-end').classList.add('hidden');
+
+            gameState.season += 1;
+            gameState.matchDay = 1;
+            gameState.player.energy = 100;
+
+            // Reset League Table for new season
+            initLeagueTable();
+
+            saveGame(false);
+            updateUI();
+            showToast(`Willkommen in Saison ${gameState.season}!`, 'info');
+        }
+
+        function generateTransferOffers() {
+            const currentOvr = calculateOVR(gameState.player);
+            const suitableClubs = CLUBS.filter(c => c.id !== gameState.player.clubId && c.rating <= currentOvr + 5);
+
+            gameState.transferOffers = suitableClubs.slice(0, 3).map(club => {
+                const offeredSalary = Math.round(gameState.player.salary * (1 + (club.rating / 100)));
+                return {
+                    clubId: club.id,
+                    clubName: club.name,
+                    salary: offeredSalary
+                };
+            });
+        }
+
+        function renderTransferOffers() {
+            const container = document.getElementById('transfer-offers-list');
+            if (gameState.transferOffers.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 bg-slate-950/40 rounded-xl border border-slate-800/80 text-slate-500">
+                        <i class="fa-solid fa-briefcase text-3xl mb-2"></i>
+                        <p>Keine aktiven Transferangebote. Spiele die laufende Saison zu Ende!</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            gameState.transferOffers.forEach(offer => {
+                const item = document.createElement('div');
+                item.className = 'p-4 rounded-xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4';
+                item.innerHTML = `
+                    <div>
+                        <h4 class="font-bold text-white text-base">${offer.clubName}</h4>
+                        <p class="text-xs text-slate-400">Gebotenes Gehalt: <strong class="text-emerald-400">${offer.salary.toLocaleString('de-DE')} €</strong> / Spiel</p>
+                    </div>
+                    <button onclick="acceptTransfer('${offer.clubId}', ${offer.salary})" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm transition">
+                        Wechsel akzeptieren
+                    </button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function acceptTransfer(newClubId, newSalary) {
+            playSound('cheer');
+            gameState.player.clubId = newClubId;
+            gameState.player.salary = newSalary;
+            gameState.transferOffers = [];
+
+            const newClub = CLUBS.find(c => c.id === newClubId);
+            saveGame(false);
+            updateUI();
+            showToast(`Transfer abgeschlossen! Willkommen bei ${newClub.name}!`, 'success');
+        }
+
+        function renderTrophies() {
+            const container = document.getElementById('trophy-cabinet');
+            const trophies = gameState.player.careerStats.trophies;
+
+            if (trophies.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-3 text-center py-6 text-slate-500 text-sm">
+                        Noch keine Titel gewonnen. Werde Liga-Meister um Trophäen freizuschalten!
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            trophies.forEach(t => {
+                const item = document.createElement('div');
+                item.className = 'p-4 rounded-xl bg-slate-950 border border-amber-500/30 flex items-center gap-3';
+                item.innerHTML = `
+                    <i class="fa-solid fa-trophy text-amber-400 text-2xl"></i>
+                    <div>
+                        <div class="font-bold text-white text-sm">${t}</div>
+                        <div class="text-[10px] text-slate-400">Nationale Meisterschaft</div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        /* ==========================================================================
+           SAVE SYSTEM & UTILS
+           ========================================================================== */
+
+        function saveGame(showNotification = true) {
+            localStorage.setItem('profikarriere_save', JSON.stringify(gameState));
+            if (showNotification) {
+                showToast('Spielstand gespeichert!', 'info');
+            }
+        }
+
+        function loadSavedGame() {
+            const saved = localStorage.getItem('profikarriere_save');
+            if (saved) {
+                try {
+                    gameState = JSON.parse(saved);
+                    showDashboard();
+                    showToast('Karriere geladen!', 'success');
+                } catch (e) {
+                    showToast('Fehler beim Laden des Spielstands!', 'error');
+                }
+            }
+        }
+
+        function confirmResetGame() {
+            if (confirm('Möchtest du deine Profikarriere wirklich zurücksetzen und neu starten?')) {
+                localStorage.removeItem('profikarriere_save');
+                location.reload();
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bg = 'bg-slate-900 border-slate-700 text-white';
+            if (type === 'success') bg = 'bg-emerald-950 border-emerald-500 text-emerald-200';
+            if (type === 'error') bg = 'bg-red-950 border-red-500 text-red-200';
+
+            toast.className = `p-4 rounded-xl border ${bg} shadow-2xl text-sm font-semibold transition-all duration-300 transform translate-y-2 pointer-events-auto flex items-center gap-2`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> ${message}`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
